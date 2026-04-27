@@ -2,82 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { GoogleGenAI, Type } from "@google/genai";
-import { Download, Upload, FileText, Loader2, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import * as XLSX from 'xlsx';
-import ReactMarkdown from 'react-markdown';
-
-// --- Types ---
-interface TireData {
-  date: string;
-  unitId: string;
-  smu: string;
-  pos1: string;
-  pos2: string;
-  pos3: string;
-  pos4: string;
-  pos5: string;
-  pos6: string;
-  pos7: string;
-  pos8: string;
-  pos9: string;
-  pos10: string;
-}
-
-interface HistoryEntry {
-  id: string;
-  timestamp: string;
-  fileName: string;
-  unitCount: number;
-  data: TireData[];
-}
-
-// --- Gemini Configuration ---
-// ai instance will be initialized dynamically to prevent top-level module crash
-
-const EXTRACTION_SCHEMA = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      date: { type: Type.STRING, description: "Format: DD/MM/YYYY" },
-      unitId: { type: Type.STRING, description: "Unit identification code" },
-      smu: { type: Type.STRING, description: "Hours (SMU). Empty if not found." },
-      pos1: { type: Type.STRING, description: "Tire position 1 pressure" },
-      pos2: { type: Type.STRING, description: "Tire position 2 pressure" },
-      pos3: { type: Type.STRING, description: "Tire position 3 pressure" },
-      pos4: { type: Type.STRING, description: "Tire position 4 pressure" },
-      pos5: { type: Type.STRING, description: "Tire position 5 pressure" },
-      pos6: { type: Type.STRING, description: "Tire position 6 pressure" },
-      pos7: { type: Type.STRING, description: "Tire position 7 pressure" },
-      pos8: { type: Type.STRING, description: "Tire position 8 pressure" },
-      pos9: { type: Type.STRING, description: "Tire position 9 pressure" },
-      pos10: { type: Type.STRING, description: "Tire position 10 pressure" },
-    },
-    required: ["date", "unitId"],
-  },
-};
-
-const SYSTEM_INSTRUCTION = `You are a professional OCR data extraction expert for heavy equipment maintenance.
-Task: Extract tire pressure inspection data from the provided document (PDF/Image).
-
-Guidelines:
-1. Date: Normalize to DD/MM/YYYY.
-2. Unit ID: Look for labels like 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Unit Number', or codes like 'RD3487', 'GR3351', 'FL####', 'LO####', 'DZ####'.
-3. SMU/Hours: Service Meter Unit. Look for 'SMU', 'Veh Hours', 'Hour', or 'Vehicle Life' (in Excel files). Leave empty if missing or unreadable.
-4. Tires (Sequential Mapping): Extract pressure values from left to right.
-   - For Excel: Pressure values are often in a row labeled "Pressure" (or similar), under "Pos 1", "Pos 2", etc.
-   - IMPORTANT: Some documents use non-sequential labels like "1, 10, 11, 12, 13, 14". 
-   - IGNORE these specific labels and map the values sequentially: the first pressure value found must go to Pos 1, the second to Pos 2, the third to Pos 3, and so on, regardless of the header number in the PDF.
-   - For example: if values are [42, 44, 52, 54, 52, 52], map them as:
-     Pos 1: 42, Pos 2: 44, Pos 3: 52, Pos 4: 54, Pos 5: 52, Pos 6: 52.
-5. Extract the "Actual" pressure (usually the top row if there are two rows like "Actual" and "Adjusted"). 
-   - If a cell shows "110 | 108", take 110.
-6. Create a separate record for EACH unit if multiple units are on the same page.
-7. Ignore irrelevant data like Serial Numbers or Rim Branding.
-
-Return the data strictly according to the provided JSON schema.`;
+// Removed GoogleGenAI schemas and instructions as they are now handled by the backend API.
 
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
@@ -151,17 +76,11 @@ export default function Home() {
     const processedFilesList: { name: string; count: number; data: TireData[] }[] = [];
 
     try {
-      if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-        throw new Error("API Key is missing. Please configure NEXT_PUBLIC_GEMINI_API_KEY.");
-      }
-
-      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY as string });
-
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setProgress(prev => ({ ...prev, current: i + 1 }));
         
-        let extractionResponse;
+        let payload: any;
 
         if (file.type.includes('spreadsheet') || file.type.includes('excel') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
           // Process Excel/CSV
@@ -175,51 +94,27 @@ export default function Home() {
             fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
           });
 
-          extractionResponse = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: [
-              {
-                parts: [
-                  { text: `Extract data from this spreadsheet content. The data is provided in CSV format from multiple sheets.\n\n${fullText}` }
-                ]
-              }
-            ],
-            config: {
-              systemInstruction: SYSTEM_INSTRUCTION,
-              responseMimeType: "application/json",
-              responseSchema: EXTRACTION_SCHEMA
-            }
-          });
+          payload = { type: "text", text: fullText };
         } else {
           // Process PDF/Image
           const base64 = await fileToBase64(file);
-          
-          extractionResponse = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: [
-              {
-                parts: [
-                  { text: "Extract data from this document." },
-                  {
-                    inlineData: {
-                      mimeType: file.type,
-                      data: base64
-                    }
-                  }
-                ]
-              }
-            ],
-            config: {
-              systemInstruction: SYSTEM_INSTRUCTION,
-              responseMimeType: "application/json",
-              responseSchema: EXTRACTION_SCHEMA
-            }
-          });
+          payload = { type: "inlineData", mimeType: file.type, data: base64 };
         }
 
-        const text = extractionResponse.text;
-        if (text) {
-          const parsed = JSON.parse(text) as TireData[];
+        const res = await fetch("/api/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const resultData = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(resultData.error || "Failed to process file.");
+        }
+
+        const parsed = resultData.data as TireData[];
+        if (parsed) {
           allData.push(...parsed);
           processedFilesList.push({
             name: file.name,
