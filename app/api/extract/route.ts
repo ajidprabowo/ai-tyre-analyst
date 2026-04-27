@@ -31,8 +31,8 @@ Task: Extract tire pressure inspection data from the provided document (PDF/Imag
 
 Guidelines:
 1. Date: Normalize to DD/MM/YYYY.
-2. Unit ID: Look for labels like 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Unit Number', or codes like 'RD3487', 'GR3351', 'FL####', 'LO####', 'DZ####'.
-3. SMU/Hours: Service Meter Unit. Look for 'SMU', 'Veh Hours', 'Hour', or 'Vehicle Life' (in Excel files). Leave empty if missing or unreadable.
+2. Unit ID: Look for labels like 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Unit Number', or codes like 'RD3487'. Remove all spaces from the Unit ID (e.g., 'RD 4324' must become 'RD4324').
+3. SMU/Hours: Service Meter Unit. Look for 'SMU', 'Veh Hours', 'Hour', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). Leave empty if missing or unreadable.
 4. Tires (Sequential Mapping): Extract pressure values from left to right.
    - For Excel: Pressure values are often in a row labeled "Pressure" (or similar), under "Pos 1", "Pos 2", etc.
    - IMPORTANT: Some documents use non-sequential labels like "1, 10, 11, 12, 13, 14". 
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     }
 
     const extractionResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [{ parts }],
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -84,6 +84,25 @@ export async function POST(req: Request) {
     }
 
     const parsed = JSON.parse(text);
+
+    // Post-processing to guarantee the exact format requested
+    if (Array.isArray(parsed)) {
+      parsed.forEach(item => {
+        // Remove spaces from Unit ID (e.g., "RD 4324" -> "RD4324")
+        if (item.unitId && typeof item.unitId === 'string') {
+          item.unitId = item.unitId.replace(/\s+/g, '');
+        }
+
+        // Round SMU to nearest integer
+        if (item.smu && typeof item.smu === 'string') {
+          const smuFloat = parseFloat(item.smu.replace(',', '.'));
+          if (!isNaN(smuFloat)) {
+            item.smu = Math.round(smuFloat).toString();
+          }
+        }
+      });
+    }
+
     return NextResponse.json({ data: parsed });
   } catch (error: any) {
     console.error("API Error:", error);
