@@ -1,4 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenAI, Type } from "@google/genai";
+import { NextResponse } from "next/server";
+
+export const maxDuration = 60;
+
+const EXTRACTION_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      date: { type: Type.STRING, description: "Format: DD/MM/YYYY" },
+      unitId: { type: Type.STRING, description: "Unit identification code" },
+      smu: { type: Type.STRING, description: "Hours (SMU). Empty if not found." },
+      pos1: { type: Type.STRING, description: "Tire position 1 pressure" },
+      pos2: { type: Type.STRING, description: "Tire position 2 pressure" },
+      pos3: { type: Type.STRING, description: "Tire position 3 pressure" },
+      pos4: { type: Type.STRING, description: "Tire position 4 pressure" },
+      pos5: { type: Type.STRING, description: "Tire position 5 pressure" },
+      pos6: { type: Type.STRING, description: "Tire position 6 pressure" },
+      pos7: { type: Type.STRING, description: "Tire position 7 pressure" },
+      pos8: { type: Type.STRING, description: "Tire position 8 pressure" },
+      pos9: { type: Type.STRING, description: "Tire position 9 pressure" },
+      pos10: { type: Type.STRING, description: "Tire position 10 pressure" },
+    },
+    required: ["date", "unitId"],
+  },
+};
 
 const SYSTEM_INSTRUCTION = `You are a professional OCR data extraction expert for heavy equipment maintenance.
 Task: Extract tire pressure inspection data from the provided document (PDF/Image).
@@ -18,85 +44,49 @@ Guidelines:
 6. Create a separate record for EACH unit if multiple units are on the same page.
 7. Ignore irrelevant data like Serial Numbers or Rim Branding.
 
-Return ONLY a valid JSON array (no markdown, no extra text) with this structure:
-[
-  {
-    "date": "DD/MM/YYYY",
-    "unitId": "unit identifier",
-    "smu": "hours or empty string",
-    "pos1": "pressure or empty string",
-    "pos2": "pressure or empty string",
-    "pos3": "pressure or empty string",
-    "pos4": "pressure or empty string",
-    "pos5": "pressure or empty string",
-    "pos6": "pressure or empty string",
-    "pos7": "pressure or empty string",
-    "pos8": "pressure or empty string",
-    "pos9": "pressure or empty string",
-    "pos10": "pressure or empty string"
-  }
-]`;
+Return the data strictly according to the provided JSON schema.`;
 
-export async function POST(request: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY not configured on server.' }, { status: 500 });
-  }
-
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { type, content, mimeType, fileName } = body;
-    // type: 'text' (for spreadsheet CSV) or 'image' (for PDF/image base64)
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ error: "GEMINI_API_KEY is not configured on the server." }, { status: 500 });
+    }
 
-    let parts: any[];
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const body = await req.json();
 
-    if (type === 'text') {
-      parts = [{ text: `Extract data from this spreadsheet content (CSV format from file: ${fileName}).\n\n${content}` }];
-    } else {
-      // PDF or image sent as base64
+    let parts: any[] = [];
+
+    if (body.type === "text") {
+      parts = [{ text: `Extract data from this spreadsheet content (File: ${body.fileName}).\n\n${body.content}` }];
+    } else if (body.type === "image" || body.type === "inlineData") {
       parts = [
-        { text: 'Extract tire pressure data from this document.' },
-        { inline_data: { mime_type: mimeType, data: content } }
+        { text: `Extract data from this document (File: ${body.fileName}).` },
+        { inlineData: { mimeType: body.mimeType, data: body.content || body.data } }
       ];
+    } else {
+      return NextResponse.json({ error: "Invalid payload type." }, { status: 400 });
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          contents: [{ parts }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-            responseMimeType: 'application/json',
-          },
-        }),
+    const extractionResponse = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ parts }],
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: EXTRACTION_SCHEMA
       }
-    );
+    });
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('Gemini API error:', err);
-      return NextResponse.json({ error: `Gemini API error: ${response.status}` }, { status: 502 });
+    const text = extractionResponse.text;
+    if (!text) {
+      return NextResponse.json({ error: "No text returned from AI." }, { status: 500 });
     }
 
-    const geminiData = await response.json();
-    const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-
-    let parsed: any[];
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      const match = text.match(/\[[\s\S]*\]/);
-      parsed = match ? JSON.parse(match[0]) : [];
-    }
-
+    const parsed = JSON.parse(text);
     return NextResponse.json({ data: parsed });
   } catch (error: any) {
-    console.error('Route error:', error);
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    console.error("API Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to process request." }, { status: 500 });
   }
 }
