@@ -26,7 +26,7 @@ const EXTRACTION_SCHEMA = {
   },
 };
 
-const SYSTEM_INSTRUCTION = \`You are a world-class, highly flexible OCR data extraction AI for heavy equipment maintenance.
+const SYSTEM_INSTRUCTION = `You are a world-class, highly flexible OCR data extraction AI for heavy equipment maintenance.
 Task: Extract tire pressure inspection data from the provided document (PDF/Image/Excel). 
 CRITICAL: The document layouts, table structures, and languages will vary wildly. Some may be handwritten, some may be misaligned CSVs. Be extremely adaptive and infer the data logically even if standard labels are missing.
 
@@ -44,7 +44,7 @@ Guidelines:
 5. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 6. Noise Reduction: Ignore irrelevant data like Serial Numbers, Inspector Names, Rim Branding, Target Pressures, or tread depth (tread depth is usually small numbers like 5-50 mm). Focus ONLY on Date, Unit ID, SMU, and the actual tire pressures.
 
-Return the data strictly according to the provided JSON schema. If a document is completely unreadable or contains zero tire pressure data, return an empty array. Do your absolute best to find and extract every piece of relevant data.\`;
+Return the data strictly according to the provided JSON schema. If a document is completely unreadable or contains zero tire pressure data, return an empty array. Do your absolute best to find and extract every piece of relevant data.`;
 
 export async function POST(req: Request) {
   try {
