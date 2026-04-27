@@ -1,0 +1,6 @@
+{
+  "name": "Tire Pressure Data Extractor",
+  "description": "Extract tire pressure inspection data from PDF/images into tables and export to Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
