@@ -34,7 +34,7 @@ interface HistoryEntry {
 }
 
 // --- Gemini Configuration ---
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY as string });
+// ai instance will be initialized dynamically to prevent top-level module crash
 
 const EXTRACTION_SCHEMA = {
   type: Type.ARRAY,
@@ -151,6 +151,12 @@ export default function Home() {
     const processedFilesList: { name: string; count: number; data: TireData[] }[] = [];
 
     try {
+      if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+        throw new Error("API Key is missing. Please configure NEXT_PUBLIC_GEMINI_API_KEY.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY as string });
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setProgress(prev => ({ ...prev, current: i + 1 }));
@@ -238,7 +244,8 @@ export default function Home() {
       setActiveHistoryId(null);
     } catch (err) {
       console.error(err);
-      setError("Failed to extract data. Please ensure the files are clearly readable.");
+      const errorMessage = err instanceof Error ? err.message : "Failed to extract data. Please ensure the files are clearly readable.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
