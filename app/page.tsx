@@ -126,8 +126,15 @@ export default function Home() {
         });
 
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || `Server error: ${response.status}`);
+          let errorMsg = `Server error: ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData.error) errorMsg = errData.error;
+          } catch (parseError) {
+            // If the response is not JSON, it's likely an HTML error page from Vercel (e.g., 413 Payload Too Large or 504 Timeout)
+            errorMsg = `Server error ${response.status}: Process failed. File might be too large or server timed out.`;
+          }
+          throw new Error(errorMsg);
         }
 
         const { data: parsed } = await response.json();

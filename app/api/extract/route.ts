@@ -26,25 +26,23 @@ const EXTRACTION_SCHEMA = {
   },
 };
 
-const SYSTEM_INSTRUCTION = `You are a professional OCR data extraction expert for heavy equipment maintenance.
-Task: Extract tire pressure inspection data from the provided document (PDF/Image).
+const SYSTEM_INSTRUCTION = `You are an advanced, highly flexible OCR data extraction expert for heavy equipment maintenance.
+Task: Extract tire pressure inspection data from the provided document (PDF/Image/Excel). 
+CRITICAL: The document layouts, table structures, and languages will vary wildly. Be extremely adaptive and infer the data logically even if standard labels are missing.
 
 Guidelines:
-1. Date: Normalize to DD/MM/YYYY.
-2. Unit ID: Look for labels like 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Unit Number', or codes like 'RD3487'. Remove all spaces from the Unit ID (e.g., 'RD 4324' must become 'RD4324').
-3. SMU/Hours: Service Meter Unit. Look for 'SMU', 'Veh Hours', 'Hour', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). Leave empty if missing or unreadable.
-4. Tires (Sequential Mapping): Extract pressure values from left to right.
-   - For Excel: Pressure values are often in a row labeled "Pressure" (or similar), under "Pos 1", "Pos 2", etc.
-   - IMPORTANT: Some documents use non-sequential labels like "1, 10, 11, 12, 13, 14". 
-   - IGNORE these specific labels and map the values sequentially: the first pressure value found must go to Pos 1, the second to Pos 2, the third to Pos 3, and so on, regardless of the header number in the PDF.
-   - For example: if values are [42, 44, 52, 54, 52, 52], map them as:
-     Pos 1: 42, Pos 2: 44, Pos 3: 52, Pos 4: 54, Pos 5: 52, Pos 6: 52.
-5. Extract the "Actual" pressure (usually the top row if there are two rows like "Actual" and "Adjusted"). 
-   - If a cell shows "110 | 108", take 110.
-6. Create a separate record for EACH unit if multiple units are on the same page.
-7. Ignore irrelevant data like Serial Numbers or Rim Branding.
+1. Date: Find the inspection date anywhere in the document. Normalize to DD/MM/YYYY.
+2. Unit ID: Look for identifiers representing the truck/machine. It might be labeled 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Equipment', or just be an alphanumeric code like 'RD3487', 'GR3351', 'DT123'. Remove all spaces from the Unit ID (e.g., 'RD 4324' must become 'RD4324').
+3. SMU/Hours: Service Meter Unit (operating hours). Look for 'SMU', 'Veh Hours', 'Hour', 'HM', 'KM', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). If you absolutely cannot find it, leave it empty.
+4. Tires (Adaptive Mapping): Find the tire pressure readings. 
+   - They might be in a row, a column, or a diagram. 
+   - Extract the pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 10) based on reading order (left-to-right, then top-to-bottom) OR based on the numbers provided if they clearly map to a sequence.
+   - Ignore specific header numbering like "1, 10, 11, 12" and simply map the first pressure found to Pos 1, the second to Pos 2, etc.
+   - Always extract the "Actual" or "Before" pressure if there are multiple readings (e.g. Actual vs Adjusted). If a cell shows "110 | 108", take 110.
+5. Multiple Units: If the document contains multiple units/trucks on the same page, create a separate JSON object record for EACH unit.
+6. Noise Reduction: Ignore irrelevant data like Serial Numbers, Inspector Names, Rim Branding, or Target Pressures. Focus ONLY on Date, Unit ID, SMU, and the actual tire pressures.
 
-Return the data strictly according to the provided JSON schema.`;
+Return the data strictly according to the provided JSON schema. If a document is completely unreadable or contains zero tire pressure data, return an empty array.`;
 
 export async function POST(req: Request) {
   try {
