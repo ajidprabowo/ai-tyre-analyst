@@ -50,6 +50,7 @@ interface TireData {
 }
 
 interface HistoryEntry {
+  extractionType?: 'ATI' | 'WIS';
   id: string;
   timestamp: string;
   fileName: string;
@@ -66,6 +67,7 @@ export default function Home() {
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
+  const [currentExtractionType, setCurrentExtractionType] = useState<'ATI' | 'WIS' | null>(null);
   const [mounted, setMounted] = useState(false);
 
   React.useEffect(() => {
@@ -116,7 +118,7 @@ export default function Home() {
     file.name.endsWith('.xls') ||
     file.name.endsWith('.csv');
 
-  const processFiles = async () => {
+  const processFiles = async (type: 'ATI' | 'WIS') => {
     if (files.length === 0) return;
     setLoading(true);
     setError(null);
@@ -139,10 +141,10 @@ export default function Home() {
             const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
             fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
           });
-          body = { type: 'text', content: fullText, fileName: file.name };
+          body = { type: 'text', content: fullText, fileName: file.name, extractionType: type };
         } else {
           const base64 = await fileToBase64(file);
-          body = { type: 'image', content: base64, mimeType: file.type, fileName: file.name };
+          body = { type: 'image', content: base64, mimeType: file.type, fileName: file.name, extractionType: type };
         }
 
         const response = await fetch('/api/extract', {
@@ -175,6 +177,7 @@ export default function Home() {
         timestamp: new Date().toLocaleString(),
         fileName: f.name,
         unitCount: f.count,
+        extractionType: type,
         data: f.data,
       }));
 
@@ -182,6 +185,7 @@ export default function Home() {
       setResults(allData);
       setFiles([]);
       setActiveHistoryId(null);
+      setCurrentExtractionType(type);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to extract data. Ensure files are clearly readable.');
@@ -196,60 +200,39 @@ export default function Home() {
     if (activeHistoryId === id) {
       setActiveHistoryId(null);
       setResults([]);
+      setCurrentExtractionType(null);
     }
   };
 
   const loadHistoryItem = (entry: HistoryEntry) => {
     setResults(entry.data);
     setActiveHistoryId(entry.id);
+    setCurrentExtractionType(entry.extractionType || 'WIS');
   };
 
   const exportToExcel = () => {
     if (results.length === 0) return;
-    const worksheet = XLSX.utils.json_to_sheet(
-            results.map(item => ({
+    const exportData = results.map(item => {
+      const base: any = {
         Date: item.date,
         'Unit ID': item.unitId,
         SMU: item.smu,
-        'Pos 1 Press': item.pos1,
-        'Pos 1 T1': item.pos1_tread1,
-        'Pos 1 T2': item.pos1_tread2,
-        'Pos 2 Press': item.pos2,
-        'Pos 2 T1': item.pos2_tread1,
-        'Pos 2 T2': item.pos2_tread2,
-        'Pos 3 Press': item.pos3,
-        'Pos 3 T1': item.pos3_tread1,
-        'Pos 3 T2': item.pos3_tread2,
-        'Pos 4 Press': item.pos4,
-        'Pos 4 T1': item.pos4_tread1,
-        'Pos 4 T2': item.pos4_tread2,
-        'Pos 5 Press': item.pos5,
-        'Pos 5 T1': item.pos5_tread1,
-        'Pos 5 T2': item.pos5_tread2,
-        'Pos 6 Press': item.pos6,
-        'Pos 6 T1': item.pos6_tread1,
-        'Pos 6 T2': item.pos6_tread2,
-        'Pos 7 Press': item.pos7,
-        'Pos 7 T1': item.pos7_tread1,
-        'Pos 7 T2': item.pos7_tread2,
-        'Pos 8 Press': item.pos8,
-        'Pos 8 T1': item.pos8_tread1,
-        'Pos 8 T2': item.pos8_tread2,
-        'Pos 9 Press': item.pos9,
-        'Pos 9 T1': item.pos9_tread1,
-        'Pos 9 T2': item.pos9_tread2,
-        'Pos 10 Press': item.pos10,
-        'Pos 10 T1': item.pos10_tread1,
-        'Pos 10 T2': item.pos10_tread2,
-        'Pos 11 Press': item.pos11,
-        'Pos 11 T1': item.pos11_tread1,
-        'Pos 11 T2': item.pos11_tread2,
-        'Pos 12 Press': item.pos12,
-        'Pos 12 T1': item.pos12_tread1,
-        'Pos 12 T2': item.pos12_tread2,
-      }))
-    );
-    worksheet['!cols'] = Array(39).fill({ wch: 8 });
+      };
+      
+      for (let i = 1; i <= 12; i++) {
+        if (currentExtractionType === 'WIS') {
+          base[`Pos ${i} Press`] = (item as any)[`pos${i}`];
+          base[`Pos ${i} T1`] = (item as any)[`pos${i}_tread1`];
+          base[`Pos ${i} T2`] = (item as any)[`pos${i}_tread2`];
+        } else {
+          base[`Pos ${i}`] = (item as any)[`pos${i}`];
+        }
+      }
+      return base;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    worksheet['!cols'] = Array(currentExtractionType === 'WIS' ? 39 : 15).fill({ wch: 8 });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Tire Inspections');
     XLSX.writeFile(workbook, `Tire_Pressure_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -358,27 +341,39 @@ export default function Home() {
                         </li>
                       ))}
                     </ul>
-                    <button
-                      onClick={processFiles}
-                      disabled={loading}
-                      className="relative w-full mt-4 bg-white text-black py-3 rounded-xl font-bold text-sm hover:bg-slate-200 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2 transition-all shadow-xl shadow-white/5 overflow-hidden"
-                    >
-                      <div className="flex items-center gap-2">
-                        {loading
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <CheckCircle2 className="w-4 h-4" />}
-                        {loading ? `PROCESSING ${progress.current}/${progress.total}` : 'EXTRACT DATA'}
-                      </div>
-                      {loading && (
-                        <div className="w-full bg-slate-700 h-1 absolute bottom-0 left-0">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(progress.current / progress.total) * 100}%` }}
-                            className="h-full bg-cyan-500"
-                          />
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => processFiles('ATI')}
+                        disabled={loading}
+                        className="relative flex-1 bg-slate-800 text-white py-3 rounded-xl font-bold text-xs hover:bg-slate-700 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed flex flex-col items-center justify-center transition-all border border-slate-700 overflow-hidden"
+                      >
+                        <div className="flex items-center gap-2">
+                          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3 text-cyan-500" />}
+                          {loading ? `${progress.current}/${progress.total}` : 'PROCESS ATI'}
                         </div>
-                      )}
-                    </button>
+                        <span className="text-[9px] text-slate-400 font-normal mt-0.5">Pressure Only</span>
+                      </button>
+                      <button
+                        onClick={() => processFiles('WIS')}
+                        disabled={loading}
+                        className="relative flex-1 bg-white text-black py-3 rounded-xl font-bold text-xs hover:bg-slate-200 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed flex flex-col items-center justify-center transition-all shadow-xl shadow-white/5 overflow-hidden"
+                      >
+                        <div className="flex items-center gap-2">
+                          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                          {loading ? `${progress.current}/${progress.total}` : 'PROCESS WIS'}
+                        </div>
+                        <span className="text-[9px] text-slate-600 font-normal mt-0.5">Pressure + Tread</span>
+                      </button>
+                    </div>
+                    {loading && (
+                      <div className="w-full bg-slate-800 h-1 rounded-full mt-2 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(progress.current / progress.total) * 100}%` }}
+                          className="h-full bg-cyan-500"
+                        />
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -430,9 +425,14 @@ export default function Home() {
                         </div>
                       </div>
                       <p className="text-xs font-medium text-slate-200 truncate mb-1">{entry.fileName}</p>
-                      <span className="text-[9px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-slate-700 uppercase tracking-tighter">
+                      <span className="text-[9px] bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-slate-700 uppercase tracking-tighter mr-2">
                         {entry.unitCount} Units
                       </span>
+                      {entry.extractionType && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-tighter ${entry.extractionType === 'WIS' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800' : 'bg-cyan-900/30 text-cyan-400 border-cyan-800'}`}>
+                          {entry.extractionType}
+                        </span>
+                      )}
                     </button>
                   ))
                 )}
@@ -514,24 +514,26 @@ export default function Home() {
                     <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800">
                         <tr>
-                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={2}>Date</th>
-                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={2}>Unit ID</th>
-                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={2}>SMU</th>
+                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={currentExtractionType === 'WIS' ? 2 : 1}>Date</th>
+                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={currentExtractionType === 'WIS' ? 2 : 1}>Unit ID</th>
+                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={currentExtractionType === 'WIS' ? 2 : 1}>SMU</th>
                           {[...Array(12)].map((_, i) => (
-                            <th key={i} colSpan={3} className={`p-2 text-[10px] font-bold text-cyan-500 uppercase tracking-widest text-center border-b border-slate-800/50 ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>
+                            <th key={i} colSpan={currentExtractionType === 'WIS' ? 3 : 1} className={`p-2 text-[10px] font-bold text-cyan-500 uppercase tracking-widest text-center ${currentExtractionType === 'WIS' ? 'border-b' : ''} border-slate-800/50 ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>
                               P${i + 1}
                             </th>
                           ))}
                         </tr>
-                        <tr>
-                          {[...Array(12)].map((_, i) => (
-                            <React.Fragment key={i}>
-                              <th className={`p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>Prs</th>
-                              <th className="p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/40">T1</th>
-                              <th className="p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/40">T2</th>
-                            </React.Fragment>
-                          ))}
-                        </tr>
+                        {currentExtractionType === 'WIS' && (
+                          <tr>
+                            {[...Array(12)].map((_, i) => (
+                              <React.Fragment key={i}>
+                                <th className={`p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>Prs</th>
+                                <th className="p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/40">T1</th>
+                                <th className="p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/40">T2</th>
+                              </React.Fragment>
+                            ))}
+                          </tr>
+                        )}
                       </thead>
                       <tbody className="divide-y divide-slate-800/30">
                         {filteredResults.map((row, idx) => (
@@ -546,12 +548,16 @@ export default function Home() {
                                 <td className={`p-4 text-sm font-medium text-center text-slate-300 ${i === 0 || i === 6 ? 'border-l border-slate-800/30' : ''}`}>
                                   {(row as any)[`pos${i+1}`] || <span className="text-slate-800">—</span>}
                                 </td>
-                                <td className="p-4 text-sm font-medium text-center text-cyan-400/80 bg-slate-900/20">
-                                  {(row as any)[`pos${i+1}_tread1`] || <span className="text-slate-800">—</span>}
-                                </td>
-                                <td className="p-4 text-sm font-medium text-center text-cyan-400/80 bg-slate-900/20">
-                                  {(row as any)[`pos${i+1}_tread2`] || <span className="text-slate-800">—</span>}
-                                </td>
+                                {currentExtractionType === 'WIS' && (
+                                  <>
+                                    <td className="p-4 text-sm font-medium text-center text-cyan-400/80 bg-slate-900/20">
+                                      {(row as any)[`pos${i+1}_tread1`] || <span className="text-slate-800">—</span>}
+                                    </td>
+                                    <td className="p-4 text-sm font-medium text-center text-cyan-400/80 bg-slate-900/20">
+                                      {(row as any)[`pos${i+1}_tread2`] || <span className="text-slate-800">—</span>}
+                                    </td>
+                                  </>
+                                )}
                               </React.Fragment>
                             ))}
                           </tr>
