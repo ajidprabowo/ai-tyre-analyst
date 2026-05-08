@@ -21,6 +21,8 @@ const EXTRACTION_SCHEMA = {
       pos8: { type: Type.STRING, description: "Tire position 8 pressure" },
       pos9: { type: Type.STRING, description: "Tire position 9 pressure" },
       pos10: { type: Type.STRING, description: "Tire position 10 pressure" },
+      pos11: { type: Type.STRING, description: "Tire position 11 pressure" },
+      pos12: { type: Type.STRING, description: "Tire position 12 pressure" },
     },
     required: ["date", "unitId"],
   },
@@ -38,7 +40,7 @@ Guidelines:
    - Look for the "Press. (PSI)" or "Pressure" section.
    - Extract the HANDWRITTEN pressure values for each tire position.
    - CRITICAL FOR IBO FORMS: Sometimes the 'Actual' column is left blank, and the mechanic writes the actual measured pressure under the 'Rec.' (Recommended) or 'Target' column by mistake. If you see handwritten numbers in the pressure section, EXTRACT THEM as the pressure values, regardless of whether they are under 'Actual' or 'Rec.'.
-   - Extract the pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 10) based on reading order (top-to-bottom or left-to-right).
+   - Extract the pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 12) based on reading order (top-to-bottom or left-to-right).
    - Ignore specific header numbering like "1, 10, 11, 12" and simply map the first pressure found to Pos 1, the second to Pos 2, etc.
    - For example: if the document shows pressures [120, 120, 120, 120], map them exactly as: Pos 1: 120, Pos 2: 120, Pos 3: 120, Pos 4: 120.
    - Strip out any units like 'psi' or 'bar' and return only the number.

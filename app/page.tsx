@@ -21,6 +21,8 @@ interface TireData {
   pos8: string;
   pos9: string;
   pos10: string;
+  pos11: string;
+  pos12: string;
 }
 
 interface HistoryEntry {
@@ -195,9 +197,11 @@ export default function Home() {
         'Pos 8': item.pos8,
         'Pos 9': item.pos9,
         'Pos 10': item.pos10,
+        'Pos 11': item.pos11,
+        'Pos 12': item.pos12,
       }))
     );
-    worksheet['!cols'] = Array(13).fill({ wch: 12 });
+    worksheet['!cols'] = Array(15).fill({ wch: 12 });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Tire Inspections');
     XLSX.writeFile(workbook, `Tire_Pressure_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -465,7 +469,7 @@ export default function Home() {
                           <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
                           <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unit ID</th>
                           <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">SMU</th>
-                          {['P1','P2','P3','P4','P5','P6','P7','P8','P9','P10'].map((p, i) => (
+                          {['P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12'].map((p, i) => (
                             <th key={p} className={`p-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest text-center ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>
                               {p}
                             </th>
@@ -480,7 +484,7 @@ export default function Home() {
                               <span className="bg-slate-800 px-2 py-1 rounded border border-slate-700">{row.unitId || '-'}</span>
                             </td>
                             <td className="p-4 text-xs font-mono text-slate-300">{row.smu || '-'}</td>
-                            {(['pos1','pos2','pos3','pos4','pos5','pos6','pos7','pos8','pos9','pos10'] as const).map((pos, i) => (
+                            {(['pos1','pos2','pos3','pos4','pos5','pos6','pos7','pos8','pos9','pos10','pos11','pos12'] as const).map((pos, i) => (
                               <td key={pos} className={`p-4 text-sm font-medium text-center text-slate-300 ${i === 0 || i === 6 ? 'border-l border-slate-800/30' : ''}`}>
                                 {row[pos] || <span className="text-slate-800">—</span>}
                               </td>
