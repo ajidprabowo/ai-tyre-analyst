@@ -8,28 +8,52 @@ const EXTRACTION_SCHEMA = {
   items: {
     type: Type.OBJECT,
     properties: {
-      date: { type: Type.STRING, description: "Format: DD/MM/YYYY" },
+            date: { type: Type.STRING, description: "Format: DD/MM/YYYY" },
       unitId: { type: Type.STRING, description: "Unit identification code" },
       smu: { type: Type.STRING, description: "Hours (SMU). Empty if not found." },
       pos1: { type: Type.STRING, description: "Tire position 1 pressure" },
+      pos1_tread1: { type: Type.STRING, description: "Tire position 1 tread 1" },
+      pos1_tread2: { type: Type.STRING, description: "Tire position 1 tread 2" },
       pos2: { type: Type.STRING, description: "Tire position 2 pressure" },
+      pos2_tread1: { type: Type.STRING, description: "Tire position 2 tread 1" },
+      pos2_tread2: { type: Type.STRING, description: "Tire position 2 tread 2" },
       pos3: { type: Type.STRING, description: "Tire position 3 pressure" },
+      pos3_tread1: { type: Type.STRING, description: "Tire position 3 tread 1" },
+      pos3_tread2: { type: Type.STRING, description: "Tire position 3 tread 2" },
       pos4: { type: Type.STRING, description: "Tire position 4 pressure" },
+      pos4_tread1: { type: Type.STRING, description: "Tire position 4 tread 1" },
+      pos4_tread2: { type: Type.STRING, description: "Tire position 4 tread 2" },
       pos5: { type: Type.STRING, description: "Tire position 5 pressure" },
+      pos5_tread1: { type: Type.STRING, description: "Tire position 5 tread 1" },
+      pos5_tread2: { type: Type.STRING, description: "Tire position 5 tread 2" },
       pos6: { type: Type.STRING, description: "Tire position 6 pressure" },
+      pos6_tread1: { type: Type.STRING, description: "Tire position 6 tread 1" },
+      pos6_tread2: { type: Type.STRING, description: "Tire position 6 tread 2" },
       pos7: { type: Type.STRING, description: "Tire position 7 pressure" },
+      pos7_tread1: { type: Type.STRING, description: "Tire position 7 tread 1" },
+      pos7_tread2: { type: Type.STRING, description: "Tire position 7 tread 2" },
       pos8: { type: Type.STRING, description: "Tire position 8 pressure" },
+      pos8_tread1: { type: Type.STRING, description: "Tire position 8 tread 1" },
+      pos8_tread2: { type: Type.STRING, description: "Tire position 8 tread 2" },
       pos9: { type: Type.STRING, description: "Tire position 9 pressure" },
+      pos9_tread1: { type: Type.STRING, description: "Tire position 9 tread 1" },
+      pos9_tread2: { type: Type.STRING, description: "Tire position 9 tread 2" },
       pos10: { type: Type.STRING, description: "Tire position 10 pressure" },
+      pos10_tread1: { type: Type.STRING, description: "Tire position 10 tread 1" },
+      pos10_tread2: { type: Type.STRING, description: "Tire position 10 tread 2" },
       pos11: { type: Type.STRING, description: "Tire position 11 pressure" },
+      pos11_tread1: { type: Type.STRING, description: "Tire position 11 tread 1" },
+      pos11_tread2: { type: Type.STRING, description: "Tire position 11 tread 2" },
       pos12: { type: Type.STRING, description: "Tire position 12 pressure" },
+      pos12_tread1: { type: Type.STRING, description: "Tire position 12 tread 1" },
+      pos12_tread2: { type: Type.STRING, description: "Tire position 12 tread 2" },
     },
     required: ["date", "unitId"],
   },
 };
 
 const SYSTEM_INSTRUCTION = `You are a world-class, highly flexible OCR data extraction AI for heavy equipment maintenance.
-Task: Extract tire pressure inspection data from the provided document (PDF/Image/Excel). 
+Task: Extract tire pressure and tread depth inspection data from the provided document (PDF/Image/Excel). 
 CRITICAL: The document layouts, table structures, and languages will vary wildly. Some may be handwritten, some may be misaligned CSVs. Be extremely adaptive and infer the data logically even if standard labels are missing.
 
 Guidelines:
@@ -44,8 +68,13 @@ Guidelines:
    - Ignore specific header numbering like "1, 10, 11, 12" and simply map the first pressure found to Pos 1, the second to Pos 2, etc.
    - For example: if the document shows pressures [120, 120, 120, 120], map them exactly as: Pos 1: 120, Pos 2: 120, Pos 3: 120, Pos 4: 120.
    - Strip out any units like 'psi' or 'bar' and return only the number.
-5. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
-6. Noise Reduction: Ignore irrelevant data like Serial Numbers, Inspector Names, or tread depth (e.g. RTD/OTD column with formats like "11.5/25=46%" or "11 | 12"). Do NOT mistake tread depth (small numbers) for tire pressure. Focus ONLY on Date, Unit ID, SMU, and the actual tire pressures in the pressure block.
+5. Tread Depth: Find the tread depth readings (e.g., labeled "Tread Depth", "RTD/OTD").
+   - There are usually two tread depth values for each tire position (Tread 1 and Tread 2). They might be written next to each other like "61 | 61" or "51 53".
+   - Extract both values and assign them to the corresponding position (e.g., pos1_tread1, pos1_tread2).
+   - If only one value is present, assign it to tread1 and leave tread2 empty.
+   - If separated by lines, spaces, or slashes, parse them into the two separate fields.
+6. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
+7. Noise Reduction: Ignore irrelevant data like Serial Numbers or Inspector Names. Focus ONLY on Date, Unit ID, SMU, tire pressures, and tread depths.
 
 Return the data strictly according to the provided JSON schema. If a document is completely unreadable or contains zero tire pressure data, return an empty array. Do your absolute best to find and extract every piece of relevant data.`;
 

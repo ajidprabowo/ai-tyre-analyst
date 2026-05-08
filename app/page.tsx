@@ -12,17 +12,41 @@ interface TireData {
   unitId: string;
   smu: string;
   pos1: string;
+  pos1_tread1: string;
+  pos1_tread2: string;
   pos2: string;
+  pos2_tread1: string;
+  pos2_tread2: string;
   pos3: string;
+  pos3_tread1: string;
+  pos3_tread2: string;
   pos4: string;
+  pos4_tread1: string;
+  pos4_tread2: string;
   pos5: string;
+  pos5_tread1: string;
+  pos5_tread2: string;
   pos6: string;
+  pos6_tread1: string;
+  pos6_tread2: string;
   pos7: string;
+  pos7_tread1: string;
+  pos7_tread2: string;
   pos8: string;
+  pos8_tread1: string;
+  pos8_tread2: string;
   pos9: string;
+  pos9_tread1: string;
+  pos9_tread2: string;
   pos10: string;
+  pos10_tread1: string;
+  pos10_tread2: string;
   pos11: string;
+  pos11_tread1: string;
+  pos11_tread2: string;
   pos12: string;
+  pos12_tread1: string;
+  pos12_tread2: string;
 }
 
 interface HistoryEntry {
@@ -183,25 +207,49 @@ export default function Home() {
   const exportToExcel = () => {
     if (results.length === 0) return;
     const worksheet = XLSX.utils.json_to_sheet(
-      results.map(item => ({
+            results.map(item => ({
         Date: item.date,
         'Unit ID': item.unitId,
         SMU: item.smu,
-        'Pos 1': item.pos1,
-        'Pos 2': item.pos2,
-        'Pos 3': item.pos3,
-        'Pos 4': item.pos4,
-        'Pos 5': item.pos5,
-        'Pos 6': item.pos6,
-        'Pos 7': item.pos7,
-        'Pos 8': item.pos8,
-        'Pos 9': item.pos9,
-        'Pos 10': item.pos10,
-        'Pos 11': item.pos11,
-        'Pos 12': item.pos12,
+        'Pos 1 Press': item.pos1,
+        'Pos 1 T1': item.pos1_tread1,
+        'Pos 1 T2': item.pos1_tread2,
+        'Pos 2 Press': item.pos2,
+        'Pos 2 T1': item.pos2_tread1,
+        'Pos 2 T2': item.pos2_tread2,
+        'Pos 3 Press': item.pos3,
+        'Pos 3 T1': item.pos3_tread1,
+        'Pos 3 T2': item.pos3_tread2,
+        'Pos 4 Press': item.pos4,
+        'Pos 4 T1': item.pos4_tread1,
+        'Pos 4 T2': item.pos4_tread2,
+        'Pos 5 Press': item.pos5,
+        'Pos 5 T1': item.pos5_tread1,
+        'Pos 5 T2': item.pos5_tread2,
+        'Pos 6 Press': item.pos6,
+        'Pos 6 T1': item.pos6_tread1,
+        'Pos 6 T2': item.pos6_tread2,
+        'Pos 7 Press': item.pos7,
+        'Pos 7 T1': item.pos7_tread1,
+        'Pos 7 T2': item.pos7_tread2,
+        'Pos 8 Press': item.pos8,
+        'Pos 8 T1': item.pos8_tread1,
+        'Pos 8 T2': item.pos8_tread2,
+        'Pos 9 Press': item.pos9,
+        'Pos 9 T1': item.pos9_tread1,
+        'Pos 9 T2': item.pos9_tread2,
+        'Pos 10 Press': item.pos10,
+        'Pos 10 T1': item.pos10_tread1,
+        'Pos 10 T2': item.pos10_tread2,
+        'Pos 11 Press': item.pos11,
+        'Pos 11 T1': item.pos11_tread1,
+        'Pos 11 T2': item.pos11_tread2,
+        'Pos 12 Press': item.pos12,
+        'Pos 12 T1': item.pos12_tread1,
+        'Pos 12 T2': item.pos12_tread2,
       }))
     );
-    worksheet['!cols'] = Array(15).fill({ wch: 12 });
+    worksheet['!cols'] = Array(39).fill({ wch: 8 });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Tire Inspections');
     XLSX.writeFile(workbook, `Tire_Pressure_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -466,13 +514,22 @@ export default function Home() {
                     <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm border-b border-slate-800">
                         <tr>
-                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
-                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unit ID</th>
-                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">SMU</th>
-                          {['P1','P2','P3','P4','P5','P6','P7','P8','P9','P10','P11','P12'].map((p, i) => (
-                            <th key={p} className={`p-4 text-[10px] font-bold text-cyan-500 uppercase tracking-widest text-center ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>
-                              {p}
+                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={2}>Date</th>
+                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={2}>Unit ID</th>
+                          <th className="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest" rowSpan={2}>SMU</th>
+                          {[...Array(12)].map((_, i) => (
+                            <th key={i} colSpan={3} className={`p-2 text-[10px] font-bold text-cyan-500 uppercase tracking-widest text-center border-b border-slate-800/50 ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>
+                              P${i + 1}
                             </th>
+                          ))}
+                        </tr>
+                        <tr>
+                          {[...Array(12)].map((_, i) => (
+                            <React.Fragment key={i}>
+                              <th className={`p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center ${i === 0 || i === 6 ? 'border-l border-slate-800/50' : ''}`}>Prs</th>
+                              <th className="p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/40">T1</th>
+                              <th className="p-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center bg-slate-900/40">T2</th>
+                            </React.Fragment>
                           ))}
                         </tr>
                       </thead>
@@ -484,10 +541,18 @@ export default function Home() {
                               <span className="bg-slate-800 px-2 py-1 rounded border border-slate-700">{row.unitId || '-'}</span>
                             </td>
                             <td className="p-4 text-xs font-mono text-slate-300">{row.smu || '-'}</td>
-                            {(['pos1','pos2','pos3','pos4','pos5','pos6','pos7','pos8','pos9','pos10','pos11','pos12'] as const).map((pos, i) => (
-                              <td key={pos} className={`p-4 text-sm font-medium text-center text-slate-300 ${i === 0 || i === 6 ? 'border-l border-slate-800/30' : ''}`}>
-                                {row[pos] || <span className="text-slate-800">—</span>}
-                              </td>
+                            {[...Array(12)].map((_, i) => (
+                              <React.Fragment key={i}>
+                                <td className={`p-4 text-sm font-medium text-center text-slate-300 ${i === 0 || i === 6 ? 'border-l border-slate-800/30' : ''}`}>
+                                  {(row as any)[`pos${i+1}`] || <span className="text-slate-800">—</span>}
+                                </td>
+                                <td className="p-4 text-sm font-medium text-center text-cyan-400/80 bg-slate-900/20">
+                                  {(row as any)[`pos${i+1}_tread1`] || <span className="text-slate-800">—</span>}
+                                </td>
+                                <td className="p-4 text-sm font-medium text-center text-cyan-400/80 bg-slate-900/20">
+                                  {(row as any)[`pos${i+1}_tread2`] || <span className="text-slate-800">—</span>}
+                                </td>
+                              </React.Fragment>
                             ))}
                           </tr>
                         ))}
