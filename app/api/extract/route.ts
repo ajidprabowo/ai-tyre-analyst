@@ -83,7 +83,11 @@ CRITICAL: The document layouts, table structures, and languages will vary wildly
 
 Guidelines:
 1. Date: Find the inspection date anywhere in the document. Normalize to DD/MM/YYYY. If multiple dates exist, use the most recent inspection date.
-2. Unit ID: Look for identifiers representing the truck/machine. It might be labeled 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Equipment', or just be an alphanumeric code like 'RD3487', 'GR3351', 'DZ3335'. Remove all spaces from the Unit ID (e.g., 'RD 4324' must become 'RD4324').
+2. Unit ID (EQUIPMENT NUMBER): Look for identifiers representing the truck/machine (e.g., 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Equipment'). 
+   DATABASE PREFIX UNIT: Gunakan library prefix 2-huruf ini sebagai acuan utama validasi unit number. Unit number selalu diawali dengan 2 huruf besar, diikuti oleh 2, 3, atau 4 angka:
+   - AC, AS, BD, BL, BU, CB, CE, CO, CP, CR, CV, DL, DR, DU, DZ, EG, EP, ES, EX, FA, FL, FM, FT, GR, HO, IT, LO, LV, MI, PA, PP, PU, PV, RD, SA, SC, SE, SM, SN, SY, TA, TC, TH, TW, VA, VF, VT, VZ, WA, WD, WG, WO, ZZ.
+   Contoh validasi: RD0051, AC6598, DZ0097, EX1255, GR1229, LO1125, LV5718, PU1008, VT0218, TW0006, WA1281.
+   Pastikan tidak ada spasi antara prefix dan angka (Contoh: "RD 0051" menjadi "RD0051").
 3. SMU/Hours: Service Meter Unit (operating hours). Look for 'SMU', 'Veh Hours', 'Hour', 'HM', 'KM', 'Odo', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). If you absolutely cannot find it, leave it empty.
 4. Tires (Adaptive Mapping): Find the tire pressure readings. 
    - Look for the "Press. (PSI)" or "Pressure" section.
@@ -104,7 +108,11 @@ CRITICAL: The document layouts, table structures, and languages will vary wildly
 
 Guidelines:
 1. Date: Find the inspection date anywhere in the document. Normalize to DD/MM/YYYY. If multiple dates exist, use the most recent inspection date.
-2. Unit ID: Look for identifiers representing the truck/machine. It might be labeled 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Equipment', or just be an alphanumeric code like 'RD3487', 'GR3351', 'DZ3335'. Remove all spaces from the Unit ID (e.g., 'RD 4324' must become 'RD4324').
+2. Unit ID (EQUIPMENT NUMBER): Look for identifiers representing the truck/machine (e.g., 'Veh', 'Machine Number', 'Truck', 'Unit No', 'Equipment'). 
+   DATABASE PREFIX UNIT: Gunakan library prefix 2-huruf ini sebagai acuan utama validasi unit number. Unit number selalu diawali dengan 2 huruf besar, diikuti oleh 2, 3, atau 4 angka:
+   - AC, AS, BD, BL, BU, CB, CE, CO, CP, CR, CV, DL, DR, DU, DZ, EG, EP, ES, EX, FA, FL, FM, FT, GR, HO, IT, LO, LV, MI, PA, PP, PU, PV, RD, SA, SC, SE, SM, SN, SY, TA, TC, TH, TW, VA, VF, VT, VZ, WA, WD, WG, WO, ZZ.
+   Contoh validasi: RD0051, AC6598, DZ0097, EX1255, GR1229, LO1125, LV5718, PU1008, VT0218, TW0006, WA1281.
+   Pastikan tidak ada spasi antara prefix dan angka (Contoh: "RD 0051" menjadi "RD0051").
 3. SMU/Hours: Service Meter Unit (operating hours). Look for 'SMU', 'Veh Hours', 'Hour', 'HM', 'KM', 'Odo', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). If you absolutely cannot find it, leave it empty.
 4. Tires (Adaptive Mapping): Find the tire pressure readings. 
    - Look for the "Press. (PSI)" or "Pressure" section.
