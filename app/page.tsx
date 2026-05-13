@@ -59,6 +59,37 @@ interface HistoryEntry {
   data: TireData[];
 }
 
+const mergeTireData = (data: TireData[]): TireData[] => {
+  const merged: TireData[] = [];
+  
+  for (const item of data) {
+    if (!item.unitId || item.unitId.trim() === '' || item.unitId === '-' || item.unitId === 'null') continue;
+    
+    let matched = false;
+    for (let i = merged.length - 1; i >= 0; i--) {
+      const existing = merged[i];
+      if (existing.unitId === item.unitId) {
+        if (!existing.date || !item.date || existing.date === item.date) {
+          for (const k of Object.keys(item) as (keyof TireData)[]) {
+            const val = item[k];
+            if (!existing[k] && val && val !== '-' && val !== 'null') {
+              existing[k] = val as any;
+            }
+          }
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    if (!matched) {
+      merged.push({ ...item });
+    }
+  }
+  
+  return merged;
+};
+
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
   const [results, setResults] = useState<TireData[]>([]);
@@ -206,8 +237,9 @@ export default function Home() {
         }
 
         if (fileData.length > 0) {
-          allData.push(...fileData);
-          processedFilesList.push({ name: file.name, count: fileData.length, data: fileData });
+          const mergedFileData = mergeTireData(fileData);
+          allData.push(...mergedFileData);
+          processedFilesList.push({ name: file.name, count: mergedFileData.length, data: mergedFileData });
         }
       }
 
