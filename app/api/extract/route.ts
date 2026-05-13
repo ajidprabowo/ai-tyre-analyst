@@ -100,7 +100,7 @@ Guidelines:
 5. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 6. Noise Reduction: Ignore irrelevant data like Serial Numbers, Inspector Names, or tread depth (e.g. RTD/OTD column with formats like "11.5/25=46%" or "11 | 12"). Do NOT mistake tread depth (small numbers) for tire pressure. Focus ONLY on Date, Unit ID, SMU, and the actual tire pressures in the pressure block.
 
-Return the data strictly according to the provided JSON schema. If a document is completely unreadable or contains zero tire pressure data, return an empty array. Do your absolute best to find and extract every piece of relevant data.`;
+Return the data strictly according to the provided JSON schema. If a document is completely unreadable, return an empty array. CRITICAL: If there is a Unit ID and/or SMU but the pressure columns are empty, you MUST still extract the Unit ID and SMU, and leave the pressure columns empty in the output. Do your absolute best to find and extract every piece of relevant data.`;
 
 const SYSTEM_INSTRUCTION_WIS = `You are a world-class, highly flexible OCR data extraction AI for heavy equipment maintenance.
 Task: Extract tire pressure and tread depth inspection data from the provided document (PDF/Image/Excel). 
@@ -130,7 +130,7 @@ Guidelines:
 6. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 7. Noise Reduction: Ignore irrelevant data like Serial Numbers or Inspector Names. Focus ONLY on Date, Unit ID, SMU, tire pressures, and tread depths.
 
-Return the data strictly according to the provided JSON schema. If a document is completely unreadable or contains zero tire pressure data, return an empty array. Do your absolute best to find and extract every piece of relevant data.`;
+Return the data strictly according to the provided JSON schema. If a document is completely unreadable, return an empty array. CRITICAL: If there is a Unit ID and/or SMU but the pressure and/or tread columns are empty, you MUST still extract the Unit ID and SMU, and leave the pressure and tread columns empty in the output. Do your absolute best to find and extract every piece of relevant data.`;
 
 export async function POST(req: Request) {
   try {
