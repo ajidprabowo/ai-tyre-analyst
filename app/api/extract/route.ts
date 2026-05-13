@@ -99,6 +99,10 @@ Guidelines:
    - Strip out any units like 'psi' or 'bar' and return only the number.
 5. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 6. Noise Reduction: Ignore irrelevant data like Serial Numbers, Inspector Names, or tread depth (e.g. RTD/OTD column with formats like "11.5/25=46%" or "11 | 12"). Do NOT mistake tread depth (small numbers) for tire pressure. Focus ONLY on Date, Unit ID, SMU, and the actual tire pressures in the pressure block.
+7. STRICT ANTI-HALLUCINATION & ACCURACY (CRITICAL): 
+   - DO NOT invent, guess, or assume any values. If a cell/field is blank, crossed out, or illegible, leave it empty ("").
+   - NEVER output a pressure value that is not explicitly written on the page.
+   - Double-check your extraction. Do not skip any visible numbers. If a number is written, it MUST be extracted accurately.
 
 Return the data strictly according to the provided JSON schema. If a document is completely unreadable, return an empty array. CRITICAL: If there is a Unit ID and/or SMU but the pressure columns are empty, you MUST still extract the Unit ID and SMU, and leave the pressure columns empty in the output. Do your absolute best to find and extract every piece of relevant data.`;
 
@@ -129,6 +133,10 @@ Guidelines:
    - If separated by lines, spaces, or slashes, parse them into the two separate fields.
 6. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 7. Noise Reduction: Ignore irrelevant data like Serial Numbers or Inspector Names. Focus ONLY on Date, Unit ID, SMU, tire pressures, and tread depths.
+8. STRICT ANTI-HALLUCINATION & ACCURACY (CRITICAL): 
+   - DO NOT invent, guess, or assume any values. If a cell/field is blank, crossed out, or illegible, leave it empty ("").
+   - NEVER output a pressure or tread value that is not explicitly written on the page.
+   - Double-check your extraction. Do not skip any visible numbers. If a number is written, it MUST be extracted accurately.
 
 Return the data strictly according to the provided JSON schema. If a document is completely unreadable, return an empty array. CRITICAL: If there is a Unit ID and/or SMU but the pressure and/or tread columns are empty, you MUST still extract the Unit ID and SMU, and leave the pressure and tread columns empty in the output. Do your absolute best to find and extract every piece of relevant data.`;
 
@@ -164,7 +172,8 @@ export async function POST(req: Request) {
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
-        responseSchema: schema
+        responseSchema: schema,
+        temperature: 0.1
       }
     });
 
