@@ -61,20 +61,46 @@ interface HistoryEntry {
 
 const mergeTireData = (data: TireData[]): TireData[] => {
   const merged: TireData[] = [];
+  let lastKnownUnitId: string | null = null;
+  let lastKnownDate: string | null = null;
   
   for (const item of data) {
-    if (!item.unitId || item.unitId.trim() === '' || item.unitId === '-' || item.unitId === 'null') continue;
+    let currentUnitId = item.unitId;
+    let currentDate = item.date;
+
+    const isUnknownId = !currentUnitId || currentUnitId.trim() === '' || currentUnitId === '-' || currentUnitId.toLowerCase() === 'unknown' || currentUnitId === 'null';
+    if (isUnknownId) {
+      if (lastKnownUnitId) {
+        currentUnitId = lastKnownUnitId;
+      } else {
+        continue;
+      }
+    } else {
+      lastKnownUnitId = currentUnitId;
+    }
+
+    const isUnknownDate = !currentDate || currentDate.trim() === '' || currentDate === '-' || currentDate.toLowerCase() === 'unknown' || currentDate === 'null';
+    if (isUnknownDate) {
+      if (lastKnownDate) {
+        currentDate = lastKnownDate;
+      }
+    } else {
+      lastKnownDate = currentDate;
+    }
     
     let matched = false;
     for (let i = merged.length - 1; i >= 0; i--) {
       const existing = merged[i];
-      if (existing.unitId === item.unitId) {
-        if (!existing.date || !item.date || existing.date === item.date) {
+      if (existing.unitId === currentUnitId) {
+        if (!existing.date || !currentDate || existing.date === currentDate) {
           for (const k of Object.keys(item) as (keyof TireData)[]) {
             const val = item[k];
-            if (!existing[k] && val && val !== '-' && val !== 'null') {
+            if (!existing[k] && val && val !== '-' && val !== 'null' && val.toLowerCase() !== 'unknown') {
               existing[k] = val as any;
             }
+          }
+          if (!existing.date && currentDate && currentDate.toLowerCase() !== 'unknown') {
+            existing.date = currentDate;
           }
           matched = true;
           break;
@@ -83,7 +109,11 @@ const mergeTireData = (data: TireData[]): TireData[] => {
     }
     
     if (!matched) {
-      merged.push({ ...item });
+      const newItem = { ...item, unitId: currentUnitId };
+      if (currentDate && currentDate.toLowerCase() !== 'unknown') {
+        newItem.date = currentDate;
+      }
+      merged.push(newItem);
     }
   }
   
