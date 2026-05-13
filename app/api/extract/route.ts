@@ -90,12 +90,12 @@ Guidelines:
    Pastikan tidak ada spasi antara prefix dan angka (Contoh: "RD 0051" menjadi "RD0051").
 3. SMU/Hours: Service Meter Unit (operating hours). Look for 'SMU', 'Veh Hours', 'Hour', 'HM', 'KM', 'Odo', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). If you absolutely cannot find it, leave it empty.
 4. Tires (Adaptive Mapping): Find the tire pressure readings. 
-   - Look for the "Press. (PSI)" or "Pressure" section.
-   - Extract the HANDWRITTEN pressure values for each tire position.
-   - CRITICAL FOR IBO FORMS: Sometimes the 'Actual' column is left blank, and the mechanic writes the actual measured pressure under the 'Rec.' (Recommended) or 'Target' column by mistake. If you see handwritten numbers in the pressure section, EXTRACT THEM as the pressure values, regardless of whether they are under 'Actual' or 'Rec.'.
-   - Extract the pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 12) based on reading order (top-to-bottom or left-to-right).
-   - Ignore specific header numbering like "1, 10, 11, 12" and simply map the first pressure found to Pos 1, the second to Pos 2, etc.
-   - For example: if the document shows pressures [120, 120, 120, 120], map them exactly as: Pos 1: 120, Pos 2: 120, Pos 3: 120, Pos 4: 120.
+   - CRITICAL RULE: YOU MUST ONLY EXTRACT HANDWRITTEN NUMBERS for tire pressure.
+   - ABSOLUTELY IGNORE ALL MACHINE-PRINTED/TYPED NUMBERS in the pressure columns (such as historical or recommended printed values like "110" or "117").
+   - If a tire position only has machine-printed numbers and NO handwritten numbers, YOU MUST LEAVE IT EMPTY.
+   - Sometimes the mechanic writes the actual measured pressure under the 'Rec.' (Recommended) column by mistake. If it is HANDWRITTEN, extract it as the actual pressure.
+   - Extract the HANDWRITTEN pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 12) based on reading order (top-to-bottom or left-to-right).
+   - Ignore specific header numbering like "1, 10, 11, 12" and simply map the first handwritten pressure found to Pos 1, the second to Pos 2, etc.
    - Strip out any units like 'psi' or 'bar' and return only the number.
 5. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 6. Noise Reduction: Ignore irrelevant data like Serial Numbers, Inspector Names, or tread depth (e.g. RTD/OTD column with formats like "11.5/25=46%" or "11 | 12"). Do NOT mistake tread depth (small numbers) for tire pressure. Focus ONLY on Date, Unit ID, SMU, and the actual tire pressures in the pressure block.
@@ -123,18 +123,17 @@ Guidelines:
    Pastikan tidak ada spasi antara prefix dan angka (Contoh: "RD 0051" menjadi "RD0051").
 3. SMU/Hours: Service Meter Unit (operating hours). Look for 'SMU', 'Veh Hours', 'Hour', 'HM', 'KM', 'Odo', or 'Vehicle Life'. Round the value to the nearest whole number (e.g., '234.7' becomes '235'). If you absolutely cannot find it, leave it empty.
 4. Tires (Adaptive Mapping): Find the tire pressure readings. 
-   - Look for the "Press. (PSI)" or "Pressure" section.
-   - Extract the HANDWRITTEN pressure values for each tire position.
-   - CRITICAL FOR IBO FORMS: Sometimes the 'Actual' column is left blank, and the mechanic writes the actual measured pressure under the 'Rec.' (Recommended) or 'Target' column by mistake. If you see handwritten numbers in the pressure section, EXTRACT THEM as the pressure values, regardless of whether they are under 'Actual' or 'Rec.'.
-   - Extract the pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 12) based on reading order (top-to-bottom or left-to-right).
-   - Ignore specific header numbering like "1, 10, 11, 12" and simply map the first pressure found to Pos 1, the second to Pos 2, etc.
-   - For example: if the document shows pressures [120, 120, 120, 120], map them exactly as: Pos 1: 120, Pos 2: 120, Pos 3: 120, Pos 4: 120.
-   - Strip out any units like 'psi' or 'bar' and return only the number.
+   - CRITICAL RULE: YOU MUST ONLY EXTRACT HANDWRITTEN NUMBERS for tire pressure.
+   - ABSOLUTELY IGNORE ALL MACHINE-PRINTED/TYPED NUMBERS in the pressure columns (like printed "110" or "117").
+   - If a tire position only has machine-printed numbers and NO handwritten numbers, YOU MUST LEAVE IT EMPTY.
+   - Sometimes the mechanic writes the actual measured pressure under the 'Rec.' column by mistake. If it is HANDWRITTEN, extract it as the actual pressure.
+   - Extract the HANDWRITTEN pressure values sequentially (Pos 1, Pos 2, Pos 3, up to Pos 12).
 5. Tread Depth: Find the tread depth readings (e.g., labeled "Tread Depth", "RTD/OTD").
-   - There are usually two tread depth values for each tire position (Tread 1 and Tread 2). They might be written next to each other like "61 | 61" or "51 53".
-   - Extract both values and assign them to the corresponding position (e.g., pos1_tread1, pos1_tread2).
-   - If only one value is present, assign it to tread1 and leave tread2 empty.
-   - If separated by lines, spaces, or slashes, parse them into the two separate fields.
+   - CRITICAL RULE: YOU MUST ONLY EXTRACT HANDWRITTEN NUMBERS for tread depth.
+   - ABSOLUTELY IGNORE ALL MACHINE-PRINTED/TYPED NUMBERS (e.g., printed "91/91" or "92/90"). If a position only has machine-printed tread numbers, YOU MUST LEAVE IT EMPTY.
+   - There are usually two HANDWRITTEN tread depth values for each tire position (Tread 1 and Tread 2).
+   - Extract both HANDWRITTEN values and assign them to the corresponding position (e.g., pos1_tread1, pos1_tread2).
+   - If only one handwritten value is present, assign it to tread1 and leave tread2 empty.
 6. Multiple Units: If the document contains multiple units/trucks on the same page or sheet, create a separate JSON object record for EACH unit. Scan the ENTIRE document thoroughly to ensure NO units are missed.
 7. Noise Reduction: Ignore irrelevant data like Serial Numbers or Inspector Names. Focus ONLY on Date, Unit ID, SMU, tire pressures, and tread depths.
 8. ACCURACY & COMPLETENESS:
