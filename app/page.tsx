@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import { Download, Upload, FileText, Loader2, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
+import { PDFDocument } from 'pdf-lib';
 
 // --- Types ---
 interface TireData {
@@ -64,7 +65,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [progress, setProgress] = useState({ current: 0, total: 0, detail: '' });
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
   const [currentExtractionType, setCurrentExtractionType] = useState<'ATI' | 'WIS' | null>(null);
@@ -122,53 +123,91 @@ export default function Home() {
     if (files.length === 0) return;
     setLoading(true);
     setError(null);
-    setProgress({ current: 0, total: files.length });
+    setProgress({ current: 0, total: files.length, detail: 'Preparing...' });
     const allData: TireData[] = [];
     const processedFilesList: { name: string; count: number; data: TireData[] }[] = [];
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        setProgress({ current: i + 1, total: files.length });
-
-        let body: object;
-
-        if (isSpreadsheet(file)) {
+        let fileData: TireData[] = [];
+        
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          setProgress({ current: i + 1, total: files.length, detail: 'Reading PDF...' });
           const arrayBuffer = await file.arrayBuffer();
-          const workbook = XLSX.read(arrayBuffer);
-          let fullText = '';
-          workbook.SheetNames.forEach(sheetName => {
-            const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
-            fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
-          });
-          body = { type: 'text', content: fullText, fileName: file.name, extractionType: type };
-        } else {
-          const base64 = await fileToBase64(file);
-          body = { type: 'image', content: base64, mimeType: file.type, fileName: file.name, extractionType: type };
-        }
-
-        const response = await fetch('/api/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-
-        if (!response.ok) {
-          let errorMsg = `Server error: ${response.status}`;
-          try {
-            const errData = await response.json();
-            if (errData.error) errorMsg = errData.error;
-          } catch (parseError) {
-            // If the response is not JSON, it's likely an HTML error page from Vercel (e.g., 413 Payload Too Large or 504 Timeout)
-            errorMsg = `Server error ${response.status}: Process failed. File might be too large or server timed out.`;
+          const pdfDoc = await PDFDocument.load(arrayBuffer);
+          const totalPages = pdfDoc.getPageCount();
+          
+          for (let p = 0; p < totalPages; p++) {
+            setProgress({ current: i + 1, total: files.length, detail: `Page ${p + 1} of ${totalPages}` });
+            
+            const newPdfDoc = await PDFDocument.create();
+            const [copiedPage] = await newPdfDoc.copyPages(pdfDoc, [p]);
+            newPdfDoc.addPage(copiedPage);
+            const pdfBytes = await newPdfDoc.saveAsBase64();
+            
+            const body = { type: 'image', content: pdfBytes, mimeType: 'application/pdf', fileName: `${file.name} (Page ${p + 1})`, extractionType: type };
+            
+            const response = await fetch('/api/extract', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            
+            if (!response.ok) {
+              console.error(`Error processing page ${p+1} of ${file.name}`);
+              continue;
+            }
+            
+            const { data: parsed } = await response.json();
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              fileData.push(...parsed);
+            }
           }
-          throw new Error(errorMsg);
+        } else {
+          setProgress({ current: i + 1, total: files.length, detail: 'Extracting...' });
+          let body: object;
+
+          if (isSpreadsheet(file)) {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer);
+            let fullText = '';
+            workbook.SheetNames.forEach(sheetName => {
+              const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+              fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
+            });
+            body = { type: 'text', content: fullText, fileName: file.name, extractionType: type };
+          } else {
+            const base64 = await fileToBase64(file);
+            body = { type: 'image', content: base64, mimeType: file.type, fileName: file.name, extractionType: type };
+          }
+
+          const response = await fetch('/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+
+          if (!response.ok) {
+            let errorMsg = `Server error: ${response.status}`;
+            try {
+              const errData = await response.json();
+              if (errData.error) errorMsg = errData.error;
+            } catch (parseError) {
+              errorMsg = `Server error ${response.status}: Process failed. File might be too large or server timed out.`;
+            }
+            throw new Error(errorMsg);
+          }
+
+          const { data: parsed } = await response.json();
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            fileData.push(...parsed);
+          }
         }
 
-        const { data: parsed } = await response.json();
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          allData.push(...parsed);
-          processedFilesList.push({ name: file.name, count: parsed.length, data: parsed });
+        if (fileData.length > 0) {
+          allData.push(...fileData);
+          processedFilesList.push({ name: file.name, count: fileData.length, data: fileData });
         }
       }
 
@@ -351,7 +390,7 @@ export default function Home() {
                           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3 text-cyan-500" />}
                           {loading ? `${progress.current}/${progress.total}` : 'PROCESS ATI'}
                         </div>
-                        <span className="text-[9px] text-slate-400 font-normal mt-0.5">Pressure Only</span>
+                        <span className="text-[9px] text-slate-400 font-normal mt-0.5">{loading && progress.detail ? progress.detail : 'Pressure Only'}</span>
                       </button>
                       <button
                         onClick={() => processFiles('WIS')}
@@ -362,7 +401,7 @@ export default function Home() {
                           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
                           {loading ? `${progress.current}/${progress.total}` : 'PROCESS WIS'}
                         </div>
-                        <span className="text-[9px] text-slate-600 font-normal mt-0.5">Pressure + Tread</span>
+                        <span className="text-[9px] text-slate-600 font-normal mt-0.5">{loading && progress.detail ? progress.detail : 'Pressure + Tread'}</span>
                       </button>
                     </div>
                     {loading && (
