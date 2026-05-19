@@ -5,7 +5,6 @@ import { useDropzone } from 'react-dropzone';
 import { Download, Upload, FileText, Loader2, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
-import { PDFDocument } from 'pdf-lib';
 
 // --- Types ---
 interface TireData {
@@ -58,67 +57,6 @@ interface HistoryEntry {
   unitCount: number;
   data: TireData[];
 }
-
-const mergeTireData = (data: TireData[]): TireData[] => {
-  const merged: TireData[] = [];
-  let lastKnownUnitId: string | null = null;
-  let lastKnownDate: string | null = null;
-  
-  for (const item of data) {
-    let currentUnitId = item.unitId;
-    let currentDate = item.date;
-
-    const isUnknownId = !currentUnitId || currentUnitId.trim() === '' || currentUnitId === '-' || currentUnitId.toLowerCase() === 'unknown' || currentUnitId === 'null';
-    if (isUnknownId) {
-      if (lastKnownUnitId) {
-        currentUnitId = lastKnownUnitId;
-      } else {
-        continue;
-      }
-    } else {
-      lastKnownUnitId = currentUnitId;
-    }
-
-    const isUnknownDate = !currentDate || currentDate.trim() === '' || currentDate === '-' || currentDate.toLowerCase() === 'unknown' || currentDate === 'null';
-    if (isUnknownDate) {
-      if (lastKnownDate) {
-        currentDate = lastKnownDate;
-      }
-    } else {
-      lastKnownDate = currentDate;
-    }
-    
-    let matched = false;
-    for (let i = merged.length - 1; i >= 0; i--) {
-      const existing = merged[i];
-      if (existing.unitId === currentUnitId) {
-        if (!existing.date || !currentDate || existing.date === currentDate) {
-          for (const k of Object.keys(item) as (keyof TireData)[]) {
-            const val = item[k];
-            if (!existing[k] && val && val !== '-' && val !== 'null' && val.toLowerCase() !== 'unknown') {
-              existing[k] = val as any;
-            }
-          }
-          if (!existing.date && currentDate && currentDate.toLowerCase() !== 'unknown') {
-            existing.date = currentDate;
-          }
-          matched = true;
-          break;
-        }
-      }
-    }
-    
-    if (!matched) {
-      const newItem = { ...item, unitId: currentUnitId };
-      if (currentDate && currentDate.toLowerCase() !== 'unknown') {
-        newItem.date = currentDate;
-      }
-      merged.push(newItem);
-    }
-  }
-  
-  return merged;
-};
 
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
@@ -191,85 +129,45 @@ export default function Home() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        let fileData: TireData[] = [];
-        
-        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          setProgress({ current: i + 1, total: files.length, detail: 'Reading PDF...' });
+        setProgress({ current: i + 1, total: files.length, detail: 'Extracting...' });
+
+        let body: object;
+
+        if (isSpreadsheet(file)) {
           const arrayBuffer = await file.arrayBuffer();
-          const pdfDoc = await PDFDocument.load(arrayBuffer);
-          const totalPages = pdfDoc.getPageCount();
-          
-          for (let p = 0; p < totalPages; p++) {
-            setProgress({ current: i + 1, total: files.length, detail: `Page ${p + 1} of ${totalPages}` });
-            
-            const newPdfDoc = await PDFDocument.create();
-            const [copiedPage] = await newPdfDoc.copyPages(pdfDoc, [p]);
-            newPdfDoc.addPage(copiedPage);
-            const pdfBytes = await newPdfDoc.saveAsBase64();
-            
-            const body = { type: 'image', content: pdfBytes, mimeType: 'application/pdf', fileName: `${file.name} (Page ${p + 1})`, extractionType: type };
-            
-            const response = await fetch('/api/extract', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            });
-            
-            if (!response.ok) {
-              console.error(`Error processing page ${p+1} of ${file.name}`);
-              continue;
-            }
-            
-            const { data: parsed } = await response.json();
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              fileData.push(...parsed);
-            }
-          }
-        } else {
-          setProgress({ current: i + 1, total: files.length, detail: 'Extracting...' });
-          let body: object;
-
-          if (isSpreadsheet(file)) {
-            const arrayBuffer = await file.arrayBuffer();
-            const workbook = XLSX.read(arrayBuffer);
-            let fullText = '';
-            workbook.SheetNames.forEach(sheetName => {
-              const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
-              fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
-            });
-            body = { type: 'text', content: fullText, fileName: file.name, extractionType: type };
-          } else {
-            const base64 = await fileToBase64(file);
-            body = { type: 'image', content: base64, mimeType: file.type, fileName: file.name, extractionType: type };
-          }
-
-          const response = await fetch('/api/extract', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
+          const workbook = XLSX.read(arrayBuffer);
+          let fullText = '';
+          workbook.SheetNames.forEach(sheetName => {
+            const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+            fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
           });
-
-          if (!response.ok) {
-            let errorMsg = `Server error: ${response.status}`;
-            try {
-              const errData = await response.json();
-              if (errData.error) errorMsg = errData.error;
-            } catch (parseError) {
-              errorMsg = `Server error ${response.status}: Process failed. File might be too large or server timed out.`;
-            }
-            throw new Error(errorMsg);
-          }
-
-          const { data: parsed } = await response.json();
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            fileData.push(...parsed);
-          }
+          body = { type: 'text', content: fullText, fileName: file.name, extractionType: type };
+        } else {
+          const base64 = await fileToBase64(file);
+          body = { type: 'image', content: base64, mimeType: file.type, fileName: file.name, extractionType: type };
         }
 
-        if (fileData.length > 0) {
-          const mergedFileData = mergeTireData(fileData);
-          allData.push(...mergedFileData);
-          processedFilesList.push({ name: file.name, count: mergedFileData.length, data: mergedFileData });
+        const response = await fetch('/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          let errorMsg = `Server error: ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData.error) errorMsg = errData.error;
+          } catch (parseError) {
+            errorMsg = `Server error ${response.status}: Process failed. File might be too large or server timed out.`;
+          }
+          throw new Error(errorMsg);
+        }
+
+        const { data: parsed } = await response.json();
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          allData.push(...parsed);
+          processedFilesList.push({ name: file.name, count: parsed.length, data: parsed });
         }
       }
 
